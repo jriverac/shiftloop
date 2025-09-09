@@ -349,15 +349,25 @@
         </div>
         <div class="input-group" style="flex: 1; min-width: 320px">
           <label><strong>Controls</strong></label>
+          <div class="switch-container">
+            <span>Specific Start Date</span>
+            <label class="switch">
+              <input type="checkbox" id="dateMode" />
+              <span class="slider"></span>
+            </label>
+            <span>Next 12 Months</span>
+          </div>
           <div style="margin-bottom: 8px">
             <label
               ><input type="checkbox" id="toggle12Months" /> Next 12
               Months</label
             >
           </div>
-          <div style="margin-bottom: 8px">
-            <label for="startDate">Start Date:</label>
-            <input type="date" id="startDate" />
+          <div class="date-mode-container">
+            <div id="specificDateContainer" class="input-group">
+              <label for="startDate">Start Date:</label>
+              <input type="date" id="startDate" />
+            </div>
           </div>
           <div style="margin-bottom: 8px">
             <label for="shiftLength">Shift Length (days):</label>
@@ -420,22 +430,7 @@
           margin-bottom: 24px;
         "
       >
-        <div style="flex: 1; min-width: 320px">
-          <div class="date-mode-container">
-            <div class="switch-container">
-              <span>Specific Start Date</span>
-              <label class="switch">
-                <input type="checkbox" id="dateMode" />
-                <span class="slider"></span>
-              </label>
-              <span>Next 12 Months</span>
-            </div>
-            <div id="specificDateContainer" class="input-group">
-              <label for="startDate">Start Date:</label>
-              <input type="date" id="startDate" />
-            </div>
-          </div>
-        </div>
+        <div style="flex: 1; min-width: 320px"></div>
       </div>
     </div>
 
