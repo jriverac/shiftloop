@@ -164,13 +164,25 @@
         background-color: #f6f8fa;
       }
 
-      .chart-container {
+      .tracker-chart-container {
         margin-top: 30px;
         border: 1px solid #e1e4e8;
         padding: 10px;
         border-radius: 6px;
         background-color: #ebedf0;
         overflow-x: auto;
+        height: 220px;
+        min-height: 220px;
+      }
+      .bell-curve-chart-container {
+        margin-top: 30px;
+        border: 1px solid #e1e4e8;
+        padding: 10px;
+        border-radius: 6px;
+        background-color: #ebedf0;
+        overflow-x: auto;
+        height: 500px;
+        min-height: 500px;
       }
 
       .chart-grid {
@@ -323,7 +335,7 @@
   <body>
     <div class="container">
       <!-- Row 1: Tracking chart full width -->
-      <div class="chart-container" style="width: 100%">
+      <div class="tracker-chart-container" style="width: 100%">
         <h2>Annual Call Chart</h2>
         <p>
           Each box represents one day. Hover to see the person on call. The
@@ -342,9 +354,12 @@
           margin-top: 20px;
         "
       >
-        <div class="chart-container" style="flex: 1; min-width: 320px">
+        <div
+          class="bell-curve-chart-container"
+          style="flex: 1; min-width: 500px"
+        >
           <h2>Standard Deviation Chart</h2>
-          <p>Shows the deviation of weekend call days per person.</p>
+
           <div id="stdDevChartWrapper"></div>
         </div>
         <div class="input-group" style="flex: 1; min-width: 320px">
@@ -521,12 +536,12 @@
         if (dateModeToggle.checked) {
           // Next 12 months mode
           specificDateContainer.style.display = "none";
-          document.querySelector(".chart-container h2").textContent =
+          document.querySelector(".tracker-chart-container h2").textContent =
             "Next 12 Months Call Chart";
         } else {
           // Specific start date mode
           specificDateContainer.style.display = "block";
-          document.querySelector(".chart-container h2").textContent =
+          document.querySelector(".tracker-chart-container h2").textContent =
             "Annual Call Chart";
         }
         calculateSchedule();
@@ -793,11 +808,16 @@
         const legend = document.createElement("div");
         legend.style.display = "flex";
         legend.style.flexDirection = "column";
-        legend.style.justifyContent = "flex-start";
-        legend.style.alignItems = "flex-start";
+        legend.style.justifyContent = "flex-end";
+        legend.style.alignItems = "flex-end";
         legend.style.marginTop = "10px";
         legend.style.minWidth = "120px";
         legend.style.fontSize = "14px";
+        legend.style.border = "2px solid #bbb";
+        legend.style.borderRadius = "8px";
+        legend.style.background = "#fff";
+        legend.style.padding = "16px 15px 16px 16px";
+        legend.style.marginLeft = "auto";
 
         peopleList.forEach((person, idx) => {
           const legendItem = document.createElement("div");
@@ -823,8 +843,8 @@
         ctx.strokeStyle = "#888";
         ctx.beginPath();
         ctx.moveTo(40, 140);
-        ctx.lineTo(480, 140);
-        ctx.moveTo(40, 140);
+        ctx.lineTo(480, 180);
+        ctx.moveTo(40, 240);
         ctx.lineTo(40, 20);
         ctx.stroke();
 
