@@ -1,6 +1,18 @@
-<!DOCTYPE html>
+// Click teammate name to enter edit mode (event delegation) if
+(e.target.classList.contains("team-name-text")) { const td =
+e.target.parentElement; td.querySelector(".team-name-text").style.display =
+"none"; td.querySelector(".team-name-input").style.display = "inline-block";
+const renameBtn = td.parentElement.querySelector(".rename-person"); if
+(renameBtn) renameBtn.style.display = "none";
+td.querySelector(".save-person").style.display = "inline-block";
+td.querySelector(".team-name-input").focus(); }
 <html lang="en">
   <head>
+    <!-- Bootstrap 5 CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Weekend Call Schedule</title>
@@ -25,7 +37,7 @@
 
       h1,
       h2 {
-        text-align: center;
+        text-align: left;
       }
 
       .input-group {
@@ -333,14 +345,10 @@
     </style>
   </head>
   <body>
-    <div class="container">
+    <div class="container-flex">
       <!-- Row 1: Tracking chart full width -->
       <div class="tracker-chart-container" style="width: 100%">
         <h2>Annual Call Chart</h2>
-        <p>
-          Each box represents one day. Hover to see the person on call. The
-          chart scrolls horizontally.
-        </p>
         <div id="chartGridWrapper"></div>
       </div>
 
@@ -370,11 +378,11 @@
               <input type="checkbox" id="dateMode" />
               <span class="slider"></span>
             </label>
-            <span>Next 12 Months</span>
+            <span>Next 13 Months</span>
           </div>
           <div style="margin-bottom: 8px">
             <label
-              ><input type="checkbox" id="toggle12Months" /> Next 12
+              ><input type="checkbox" id="toggle12Months" /> Next 132
               Months</label
             >
           </div>
@@ -427,654 +435,729 @@
             </thead>
             <tbody id="team-table-body"></tbody>
           </table>
-          <p><strong>Mean Weekend Days:</strong> <span id="mean"></span></p>
-          <p><strong>Standard Deviation:</strong> <span id="stdDev"></span></p>
         </div>
         <div
           id="results"
           style="flex: 1; min-width: 300px; display: none"
         ></div>
       </div>
-
-      <div
-        style="
-          display: flex;
-          gap: 32px;
-          align-items: flex-start;
-          width: 100%;
-          margin-bottom: 24px;
-        "
-      >
-        <div style="flex: 1; min-width: 320px"></div>
+    </div>
+    <div id="roadsigns" class="row">
+      <div class="col-6">
+        <div id="mean-roadsign" class="card text-center shadow-lg w-100">
+          <div class="card-body p-4">
+            <div class="card-title h6 mb-2">Mean Weekend Days</div>
+            <span id="mean" class="display-5 fw-bold"></span>
+          </div>
+        </div>
+      </div>
+      <div class="col-6">
+        <div id="stddev-roadsign" class="card text-center shadow-lg w-100">
+          <div class="card-body p-4">
+            <div class="card-title h6 mb-2">Standard Deviation</div>
+            <span id="stdDev" class="display-5 fw-bold"></span>
+          </div>
+        </div>
       </div>
     </div>
+  </body>
+  <script>
+    const PEOPLE_STORAGE_KEY = "callSchedulerPeople";
+    const SETTINGS_STORAGE_KEY = "callSchedulerSettings";
+    let peopleList = [];
 
-    <script>
-      const PEOPLE_STORAGE_KEY = "callSchedulerPeople";
-      const SETTINGS_STORAGE_KEY = "callSchedulerSettings";
-      let peopleList = [];
+    const addPersonInput = document.getElementById("add-person-input");
+    const addPersonBtn = document.getElementById("add-person-btn");
+    // const teamListUl = document.getElementById('team-list');
+    const chartGridWrapper = document.getElementById("chartGridWrapper");
+    const startDateInput = document.getElementById("startDate");
+    const shiftLengthInput = document.getElementById("shiftLength");
+    const includeFridayCheckbox = document.getElementById("includeFriday");
+    const dateModeToggle = document.getElementById("dateMode");
+    const specificDateContainer = document.getElementById(
+      "specificDateContainer"
+    );
 
-      const addPersonInput = document.getElementById("add-person-input");
-      const addPersonBtn = document.getElementById("add-person-btn");
-      // const teamListUl = document.getElementById('team-list');
-      const chartGridWrapper = document.getElementById("chartGridWrapper");
-      const startDateInput = document.getElementById("startDate");
-      const shiftLengthInput = document.getElementById("shiftLength");
-      const includeFridayCheckbox = document.getElementById("includeFriday");
-      const dateModeToggle = document.getElementById("dateMode");
-      const specificDateContainer = document.getElementById(
-        "specificDateContainer"
-      );
+    const colorPalette = [
+      "#E69F00",
+      "#56B4E9",
+      "#009E73",
+      "#F0E442",
+      "#0072B2",
+      "#D55E00",
+      "#CC79A7",
+    ];
 
-      const colorPalette = [
-        "#E69F00",
-        "#56B4E9",
-        "#009E73",
-        "#F0E442",
-        "#0072B2",
-        "#D55E00",
-        "#CC79A7",
-      ];
+    let dragSrcEl = null;
 
-      let dragSrcEl = null;
+    // --- Core Functions ---
 
-      // --- Core Functions ---
+    function savePeople() {
+      localStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(peopleList));
+    }
 
-      function savePeople() {
-        localStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(peopleList));
-      }
+    function saveSettings() {
+      const settings = {
+        startDate: startDateInput.value,
+        shiftLength: shiftLengthInput.value,
+        includeFriday: includeFridayCheckbox.checked,
+        useNext12Months: dateModeToggle.checked,
+      };
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    }
 
-      function saveSettings() {
-        const settings = {
-          startDate: startDateInput.value,
-          shiftLength: shiftLengthInput.value,
-          includeFriday: includeFridayCheckbox.checked,
-          useNext12Months: dateModeToggle.checked,
-        };
-        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-      }
+    function loadSettings() {
+      const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (storedSettings) {
+        const settings = JSON.parse(storedSettings);
 
-      function loadSettings() {
-        const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
-        if (storedSettings) {
-          const settings = JSON.parse(storedSettings);
-
-          // Apply saved start date or use today's date as default
-          if (settings.startDate) {
-            startDateInput.value = settings.startDate;
-          } else {
-            const today = new Date();
-            const todayISO = today.toISOString().split("T")[0];
-            startDateInput.value = todayISO;
-          }
-
-          // Apply saved shift length or use default
-          if (settings.shiftLength) {
-            shiftLengthInput.value = settings.shiftLength;
-          }
-
-          // Apply saved Friday inclusion setting
-          if (settings.includeFriday !== undefined) {
-            includeFridayCheckbox.checked = settings.includeFriday;
-          }
-
-          // Apply saved date mode setting
-          if (settings.useNext12Months !== undefined) {
-            dateModeToggle.checked = settings.useNext12Months;
-            updateDateModeDisplay();
-          }
+        // Apply saved start date or use today's date as default
+        if (settings.startDate) {
+          startDateInput.value = settings.startDate;
         } else {
-          // Default to today's date if no settings are saved
           const today = new Date();
           const todayISO = today.toISOString().split("T")[0];
           startDateInput.value = todayISO;
         }
-      }
 
-      // Function to update the date mode display
-      function updateDateModeDisplay() {
-        if (dateModeToggle.checked) {
-          // Next 12 months mode
-          specificDateContainer.style.display = "none";
-          document.querySelector(".tracker-chart-container h2").textContent =
-            "Next 12 Months Call Chart";
-        } else {
-          // Specific start date mode
-          specificDateContainer.style.display = "block";
-          document.querySelector(".tracker-chart-container h2").textContent =
-            "Annual Call Chart";
+        // Apply saved shift length or use default
+        if (settings.shiftLength) {
+          shiftLengthInput.value = settings.shiftLength;
         }
-        calculateSchedule();
-      }
 
-      function loadPeople() {
-        const storedPeople = localStorage.getItem(PEOPLE_STORAGE_KEY);
-        if (storedPeople) {
-          peopleList = JSON.parse(storedPeople);
+        // Apply saved Friday inclusion setting
+        if (settings.includeFriday !== undefined) {
+          includeFridayCheckbox.checked = settings.includeFriday;
         }
-        renderPeopleList();
-        calculateSchedule();
-      }
 
-      function addPerson() {
-        const name = addPersonInput.value.trim();
-        if (name) {
-          const defaultColor =
-            colorPalette[peopleList.length % colorPalette.length];
-          peopleList.push({ name: name, color: defaultColor });
-          addPersonInput.value = "";
-          renderPeopleList();
-          savePeople();
-          calculateSchedule();
+        // Apply saved date mode setting
+        if (settings.useNext12Months !== undefined) {
+          dateModeToggle.checked = settings.useNext12Months;
+          updateDateModeDisplay();
         }
+      } else {
+        // Default to today's date if no settings are saved
+        const today = new Date();
+        const todayISO = today.toISOString().split("T")[0];
+        startDateInput.value = todayISO;
       }
+    }
 
-      function removePerson(index) {
-        peopleList.splice(index, 1);
+    // Function to update the date mode display
+    function updateDateModeDisplay() {
+      if (dateModeToggle.checked) {
+        // Next 12 months mode
+        specificDateContainer.style.display = "none";
+        document.querySelector(".tracker-chart-container h2").textContent =
+          "Next 12 Months Call Chart";
+      } else {
+        // Specific start date mode
+        specificDateContainer.style.display = "block";
+        document.querySelector(".tracker-chart-container h2").textContent =
+          "Annual Call Chart";
+      }
+      calculateSchedule();
+    }
+
+    function loadPeople() {
+      const storedPeople = localStorage.getItem(PEOPLE_STORAGE_KEY);
+      if (storedPeople) {
+        peopleList = JSON.parse(storedPeople);
+      }
+      renderPeopleList();
+      calculateSchedule();
+    }
+
+    function addPerson() {
+      const name = addPersonInput.value.trim();
+      if (name) {
+        const defaultColor =
+          colorPalette[peopleList.length % colorPalette.length];
+        peopleList.push({ name: name, color: defaultColor });
+        addPersonInput.value = "";
         renderPeopleList();
         savePeople();
         calculateSchedule();
       }
+    }
 
-      function renderPeopleList() {
-        // teamListUl.innerHTML = '';
-        const teamTableBody = document.getElementById("team-table-body");
-        if (!teamTableBody) return;
-        teamTableBody.innerHTML = "";
-        peopleList.forEach((person, index) => {
-          const tr = document.createElement("tr");
-          tr.draggable = true;
-          tr.dataset.index = index;
-          // Color cell
-          const colorTd = document.createElement("td");
-          colorTd.innerHTML = `<input type="color" value="${person.color}" data-index="${index}">`;
-          tr.appendChild(colorTd);
-          // Name cell
-          const nameTd = document.createElement("td");
-          nameTd.textContent = person.name;
-          tr.appendChild(nameTd);
-          // Weekend Call Days cell (filled later)
-          const daysTd = document.createElement("td");
-          daysTd.className = "weekend-call-days";
-          daysTd.textContent = "";
-          tr.appendChild(daysTd);
-          // Remove button cell
-          const removeTd = document.createElement("td");
-          removeTd.innerHTML = `<button class="remove-person" data-index="${index}">Remove</button>`;
-          tr.appendChild(removeTd);
-          // Drag events
-          tr.addEventListener("dragstart", handleDragStart);
-          tr.addEventListener("dragover", handleDragOver);
-          tr.addEventListener("drop", handleDrop);
-          tr.addEventListener("dragend", handleDragEnd);
-          teamTableBody.appendChild(tr);
-        });
+    function removePerson(index) {
+      peopleList.splice(index, 1);
+      renderPeopleList();
+      savePeople();
+      calculateSchedule();
+    }
+
+    function renderPeopleList() {
+      // teamListUl.innerHTML = '';
+      const teamTableBody = document.getElementById("team-table-body");
+      if (!teamTableBody) return;
+      teamTableBody.innerHTML = "";
+      peopleList.forEach((person, index) => {
+        const tr = document.createElement("tr");
+        tr.draggable = true;
+        tr.dataset.index = index;
+        // Color cell
+        const colorTd = document.createElement("td");
+        colorTd.innerHTML = `<input type="color" value="${person.color}" data-index="${index}">`;
+        tr.appendChild(colorTd);
+        // Name cell with rename input only
+        const nameTd = document.createElement("td");
+        nameTd.className = "team-name-cell";
+        nameTd.innerHTML = `
+            <span class="team-name-text">${person.name}</span>
+            <input type="text" class="team-name-input form-control form-control-sm" value="${person.name}" style="display:none; width: 70%; margin-right: 4px;">
+            <button class="save-person btn btn-success btn-sm" data-index="${index}" style="display:none;">Save</button>
+          `;
+        tr.appendChild(nameTd);
+        // Weekend Call Days cell (filled later)
+        const daysTd = document.createElement("td");
+        daysTd.className = "weekend-call-days";
+        daysTd.textContent = "";
+        tr.appendChild(daysTd);
+        // Remove and Rename button cell
+        const actionTd = document.createElement("td");
+        actionTd.innerHTML = `
+            <button class="remove-person btn btn-danger btn-sm" data-index="${index}">Remove</button>
+            <button class="rename-person btn btn-outline-secondary btn-sm" data-index="${index}">Rename</button>
+          `;
+        tr.appendChild(actionTd);
+        // Drag events
+        tr.addEventListener("dragstart", handleDragStart);
+        tr.addEventListener("dragover", handleDragOver);
+        tr.addEventListener("drop", handleDrop);
+        tr.addEventListener("dragend", handleDragEnd);
+        teamTableBody.appendChild(tr);
+      });
+    }
+
+    function handleDragStart(e) {
+      this.style.opacity = "0.5";
+      dragSrcEl = this;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", this.dataset.index);
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    }
+
+    function handleDrop(e) {
+      e.stopPropagation();
+      if (dragSrcEl !== this) {
+        const dragIndex = parseInt(e.dataTransfer.getData("text/plain"));
+        const dropIndex = parseInt(this.dataset.index);
+        const [draggedItem] = peopleList.splice(dragIndex, 1);
+        peopleList.splice(dropIndex, 0, draggedItem);
+        renderPeopleList();
+        savePeople();
+        calculateSchedule();
       }
+    }
 
-      function handleDragStart(e) {
-        this.style.opacity = "0.5";
-        dragSrcEl = this;
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", this.dataset.index);
+    function handleDragEnd(e) {
+      this.style.opacity = "1";
+      renderPeopleList();
+    }
+
+    // --- Event Listeners ---
+    addPersonBtn.addEventListener("click", addPerson);
+    addPersonInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        addPerson();
       }
+    });
 
-      function handleDragOver(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-      }
+    document
+      .getElementById("team-table-body")
+      .addEventListener("click", (e) => {
+        if (e.target.classList.contains("remove-person")) {
+          const index = e.target.dataset.index;
+          removePerson(index);
+        }
+        // Rename button toggles input
+        if (e.target.classList.contains("rename-person")) {
+          // Find the row and the name cell
+          const tr = e.target.closest("tr");
+          const nameTd = tr.querySelector(".team-name-cell");
+          nameTd.querySelector(".team-name-text").style.display = "none";
+          nameTd.querySelector(".team-name-input").style.display =
+            "inline-block";
+          e.target.style.display = "none";
+          nameTd.querySelector(".save-person").style.display = "inline-block";
+          nameTd.querySelector(".team-name-input").focus();
+        }
+        // Save button applies name change
+        if (e.target.classList.contains("save-person")) {
+          const td = e.target.closest(".team-name-cell");
+          const input = td.querySelector(".team-name-input");
+          const newName = input.value.trim();
+          const index = e.target.dataset.index;
+          if (newName) {
+            peopleList[index].name = newName;
+            savePeople();
+            renderPeopleList();
+            calculateSchedule();
+          }
+        }
+      });
 
-      function handleDrop(e) {
-        e.stopPropagation();
-        if (dragSrcEl !== this) {
-          const dragIndex = parseInt(e.dataTransfer.getData("text/plain"));
-          const dropIndex = parseInt(this.dataset.index);
-          const [draggedItem] = peopleList.splice(dragIndex, 1);
-          peopleList.splice(dropIndex, 0, draggedItem);
-          renderPeopleList();
+    // Handle Enter key in name input to save
+    document
+      .getElementById("team-table-body")
+      .addEventListener("keydown", (e) => {
+        if (
+          e.target.classList.contains("team-name-input") &&
+          e.key === "Enter"
+        ) {
+          const td = e.target.closest(".team-name-cell");
+          const input = td.querySelector(".team-name-input");
+          const newName = input.value.trim();
+          const index = td.parentElement.dataset.index;
+          if (newName) {
+            peopleList[index].name = newName;
+            savePeople();
+            renderPeopleList();
+            calculateSchedule();
+          }
+        }
+      });
+
+    document
+      .getElementById("team-table-body")
+      .addEventListener("change", (e) => {
+        if (e.target.type === "color") {
+          const index = e.target.dataset.index;
+          peopleList[index].color = e.target.value;
           savePeople();
           calculateSchedule();
         }
-      }
-
-      function handleDragEnd(e) {
-        this.style.opacity = "1";
-        renderPeopleList();
-      }
-
-      // --- Event Listeners ---
-      addPersonBtn.addEventListener("click", addPerson);
-      addPersonInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          addPerson();
-        }
       });
 
-      document
-        .getElementById("team-table-body")
-        .addEventListener("click", (e) => {
-          if (e.target.classList.contains("remove-person")) {
-            const index = e.target.dataset.index;
-            removePerson(index);
-          }
-        });
+    // ...existing code...
 
-      document
-        .getElementById("team-table-body")
-        .addEventListener("change", (e) => {
-          if (e.target.type === "color") {
-            const index = e.target.dataset.index;
-            peopleList[index].color = e.target.value;
-            savePeople();
-            calculateSchedule();
-          }
-        });
+    // Add event listeners for saving settings and recalculating schedule
+    startDateInput.addEventListener("change", () => {
+      saveSettings();
+      calculateSchedule();
+    });
 
-      // ...existing code...
+    shiftLengthInput.addEventListener("change", () => {
+      saveSettings();
+      calculateSchedule();
+    });
 
-      // Add event listeners for saving settings and recalculating schedule
-      startDateInput.addEventListener("change", () => {
-        saveSettings();
-        calculateSchedule();
-      });
+    shiftLengthInput.addEventListener("input", () => {
+      saveSettings();
+      calculateSchedule();
+    });
 
-      shiftLengthInput.addEventListener("change", () => {
-        saveSettings();
-        calculateSchedule();
-      });
+    includeFridayCheckbox.addEventListener("change", () => {
+      saveSettings();
+      calculateSchedule();
+    });
 
-      shiftLengthInput.addEventListener("input", () => {
-        saveSettings();
-        calculateSchedule();
-      });
+    // Add event listener for date mode toggle
+    dateModeToggle.addEventListener("change", () => {
+      saveSettings();
+      updateDateModeDisplay();
+    });
 
-      includeFridayCheckbox.addEventListener("change", () => {
-        saveSettings();
-        calculateSchedule();
-      });
-
-      // Add event listener for date mode toggle
-      dateModeToggle.addEventListener("change", () => {
-        saveSettings();
-        updateDateModeDisplay();
-      });
-
-      // --- Schedule Calculation and Chart Generation ---
-      function calculateSchedule() {
-        const peopleCount = peopleList.length;
-        if (peopleCount === 0) {
-          document.getElementById("team-table-body").innerHTML = "";
-          document.getElementById("mean").textContent = "N/A";
-          document.getElementById("stdDev").textContent = "N/A";
-          chartGridWrapper.innerHTML = "";
-          document.getElementById("stdDevChartWrapper").innerHTML = "";
-          return;
-        }
-
-        const shiftLength = parseInt(
-          document.getElementById("shiftLength").value
-        );
-        const includeFriday = document.getElementById("includeFriday").checked;
-        const totalDaysInYear = 365;
-        const useNext12Months = dateModeToggle.checked;
-
+    // --- Schedule Calculation and Chart Generation ---
+    function calculateSchedule() {
+      const peopleCount = peopleList.length;
+      if (peopleCount === 0) {
+        document.getElementById("team-table-body").innerHTML = "";
+        document.getElementById("mean").textContent = "N/A";
+        document.getElementById("stdDev").textContent = "N/A";
         chartGridWrapper.innerHTML = "";
         document.getElementById("stdDevChartWrapper").innerHTML = "";
+        return;
+      }
 
-        const weekendDaysPerPerson = new Array(peopleCount).fill(0);
-        const dailySchedule = new Array(totalDaysInYear).fill(-1);
+      const shiftLength = parseInt(
+        document.getElementById("shiftLength").value
+      );
+      const includeFriday = document.getElementById("includeFriday").checked;
+      const totalDaysInYear = 365;
+      const useNext12Months = dateModeToggle.checked;
 
-        // Determine start date based on mode
-        let startDate;
-        if (useNext12Months) {
-          // Next 12 months mode - use today as start date
-          startDate = new Date();
+      chartGridWrapper.innerHTML = "";
+      document.getElementById("stdDevChartWrapper").innerHTML = "";
+
+      const weekendDaysPerPerson = new Array(peopleCount).fill(0);
+      const dailySchedule = new Array(totalDaysInYear).fill(-1);
+
+      // Determine start date based on mode
+      let startDate;
+      if (useNext12Months) {
+        // Next 12 months mode - use today as start date
+        startDate = new Date();
+      } else {
+        // Specific start date mode - use the selected date
+        startDate = new Date(startDateInput.value + "T00:00:00");
+      }
+
+      // Reference dates for calculations
+      const firstDayOfYearDate = new Date(startDate.getFullYear(), 0, 1);
+      const startDayOffset = Math.floor(
+        (startDate - firstDayOfYearDate) / (1000 * 60 * 60 * 24)
+      ); // Assign team members to shifts
+      for (let day = 0; day < totalDaysInYear; day++) {
+        const shiftNumber = Math.floor(day / shiftLength);
+        const personIndex = shiftNumber % peopleCount;
+        dailySchedule[day] = personIndex;
+
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + day);
+        const dayOfWeek = currentDate.getDay();
+        let isWeekendDay = false;
+        if (includeFriday) {
+          if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0) {
+            isWeekendDay = true;
+          }
         } else {
-          // Specific start date mode - use the selected date
-          startDate = new Date(startDateInput.value + "T00:00:00");
-        }
-
-        // Reference dates for calculations
-        const firstDayOfYearDate = new Date(startDate.getFullYear(), 0, 1);
-        const startDayOffset = Math.floor(
-          (startDate - firstDayOfYearDate) / (1000 * 60 * 60 * 24)
-        ); // Assign team members to shifts
-        for (let day = 0; day < totalDaysInYear; day++) {
-          const shiftNumber = Math.floor(day / shiftLength);
-          const personIndex = shiftNumber % peopleCount;
-          dailySchedule[day] = personIndex;
-
-          const currentDate = new Date(startDate);
-          currentDate.setDate(startDate.getDate() + day);
-          const dayOfWeek = currentDate.getDay();
-          let isWeekendDay = false;
-          if (includeFriday) {
-            if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0) {
-              isWeekendDay = true;
-            }
-          } else {
-            if (dayOfWeek === 6 || dayOfWeek === 0) {
-              isWeekendDay = true;
-            }
-          }
-          if (isWeekendDay) {
-            weekendDaysPerPerson[personIndex]++;
+          if (dayOfWeek === 6 || dayOfWeek === 0) {
+            isWeekendDay = true;
           }
         }
-
-        let totalDaysOnCallSum = 0;
-        // Fill the merged table's Weekend Call Days column
-        const teamTableBody = document.getElementById("team-table-body");
-        if (teamTableBody) {
-          [...teamTableBody.children].forEach((tr, i) => {
-            const daysTd = tr.querySelector(".weekend-call-days");
-            if (daysTd) {
-              daysTd.textContent = weekendDaysPerPerson[i];
-            }
-          });
-        }
-        for (let i = 0; i < peopleCount; i++) {
-          totalDaysOnCallSum += weekendDaysPerPerson[i];
-        }
-
-        const mean = totalDaysOnCallSum / peopleCount;
-        const sumOfSquares = weekendDaysPerPerson.reduce(
-          (sum, days) => sum + Math.pow(days - mean, 2),
-          0
-        );
-        const stdDev = Math.sqrt(sumOfSquares / peopleCount);
-
-        document.getElementById("mean").textContent = mean.toFixed(2);
-        document.getElementById("stdDev").textContent = stdDev.toFixed(2);
-
-        // --- Standard Deviation Bell Curve Chart with Legend ---
-        const stdDevChartWrapper =
-          document.getElementById("stdDevChartWrapper");
-        stdDevChartWrapper.innerHTML = "";
-        const chartFlex = document.createElement("div");
-        chartFlex.style.display = "flex";
-        chartFlex.style.alignItems = "flex-start";
-        chartFlex.style.gap = "24px";
-
-        // Canvas for bell curve
-        const canvas = document.createElement("canvas");
-        canvas.width = 500;
-        canvas.height = 160;
-        canvas.style.width = "100%";
-        canvas.style.maxWidth = "400px";
-        canvas.style.display = "block";
-        chartFlex.appendChild(canvas);
-
-        // Legend container
-        const legend = document.createElement("div");
-        legend.style.display = "flex";
-        legend.style.flexDirection = "column";
-        legend.style.justifyContent = "flex-end";
-        legend.style.alignItems = "flex-end";
-        legend.style.marginTop = "10px";
-        legend.style.minWidth = "120px";
-        legend.style.fontSize = "14px";
-        legend.style.border = "2px solid #bbb";
-        legend.style.borderRadius = "8px";
-        legend.style.background = "#fff";
-        legend.style.padding = "16px 15px 16px 16px";
-        legend.style.marginLeft = "auto";
-
-        peopleList.forEach((person, idx) => {
-          const legendItem = document.createElement("div");
-          legendItem.style.display = "flex";
-          legendItem.style.alignItems = "center";
-          legendItem.style.marginBottom = "8px";
-          const colorDot = document.createElement("span");
-          colorDot.style.display = "inline-block";
-          colorDot.style.width = "16px";
-          colorDot.style.height = "16px";
-          colorDot.style.borderRadius = "50%";
-          colorDot.style.backgroundColor = person.color;
-          colorDot.style.marginRight = "8px";
-          legendItem.appendChild(colorDot);
-          legendItem.appendChild(document.createTextNode(person.name));
-          legend.appendChild(legendItem);
-        });
-        chartFlex.appendChild(legend);
-        stdDevChartWrapper.appendChild(chartFlex);
-
-        const ctx = canvas.getContext("2d");
-        // Draw axes
-        ctx.strokeStyle = "#888";
-        ctx.beginPath();
-        ctx.moveTo(40, 140);
-        ctx.lineTo(480, 180);
-        ctx.moveTo(40, 240);
-        ctx.lineTo(40, 20);
-        ctx.stroke();
-
-        // Draw bell curve
-        function normalPDF(x, mean, std) {
-          return (
-            (1 / (std * Math.sqrt(2 * Math.PI))) *
-            Math.exp(-0.5 * Math.pow((x - mean) / std, 2))
-          );
-        }
-        const minX = Math.min(...weekendDaysPerPerson);
-        const maxX = Math.max(...weekendDaysPerPerson);
-        const pad = Math.max(2, Math.round(stdDev));
-        const xStart = minX - pad;
-        const xEnd = maxX + pad;
-        ctx.strokeStyle = "#0072B2";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        for (let px = 0; px <= 440; px++) {
-          const x = xStart + ((xEnd - xStart) * px) / 440;
-          const y = normalPDF(x, mean, stdDev);
-          const yPx = 140 - y * 6000;
-          if (px === 0) {
-            ctx.moveTo(40 + px, yPx);
-          } else {
-            ctx.lineTo(40 + px, yPx);
-          }
-        }
-        ctx.stroke();
-
-        // Draw data points
-        weekendDaysPerPerson.forEach((days, idx) => {
-          const xPx = 40 + ((days - xStart) / (xEnd - xStart)) * 440;
-          const y = normalPDF(days, mean, stdDev);
-          const yPx = 140 - y * 6000;
-          ctx.beginPath();
-          ctx.arc(xPx, yPx, 6, 0, 2 * Math.PI);
-          ctx.fillStyle = peopleList[idx].color;
-          ctx.fill();
-          ctx.strokeStyle = "#333";
-          ctx.stroke();
-        });
-
-        // Draw x axis labels
-        ctx.font = "12px sans-serif";
-        ctx.fillStyle = "#333";
-        ctx.textAlign = "center";
-        ctx.fillText("Weekend Call Days", 260, 155);
-        ctx.textAlign = "right";
-        ctx.fillText(Math.round(xStart), 40, 150);
-        ctx.textAlign = "left";
-        ctx.fillText(Math.round(xEnd), 480, 150);
-
-        // --- Chart Generation ---
-        const totalWeeksToShow = 53; // Show approx 1 year (52-53 weeks)
-
-        // Create a simplified month header
-        const monthHeader = document.createElement("div");
-        monthHeader.classList.add("month-header");
-
-        // Set up day labels for y-axis (Sun at top, Sat at bottom)
-        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const chartGrid = document.createElement("div");
-        chartGrid.classList.add("chart-grid");
-
-        // Create reference dates for chart generation
-        let chartStartDate, chartEndDate;
-
-        if (useNext12Months) {
-          // For Next 12 Months mode:
-          // Find the start of the current week (Sunday)
-          chartStartDate = new Date(startDate);
-          const dayOfWeek = chartStartDate.getDay();
-          chartStartDate.setDate(chartStartDate.getDate() - dayOfWeek); // Go back to Sunday
-
-          // Calculate end date (about 12 months from start)
-          chartEndDate = new Date(chartStartDate);
-          chartEndDate.setDate(chartStartDate.getDate() + totalWeeksToShow * 7);
-        } else {
-          // For Specific Date mode, show the whole year:
-          chartStartDate = new Date(startDate.getFullYear(), 0, 1); // Jan 1st of the year
-          chartEndDate = new Date(startDate.getFullYear() + 1, 0, 0); // Dec 31st of the year
-        }
-
-        // Generate month labels
-        const monthNames = [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
-        ];
-        const weekWidth = 100 / totalWeeksToShow; // Percentage width for each week
-
-        // Track the months to display
-        const months = [];
-        let currentMonth = new Date(chartStartDate);
-        while (currentMonth < chartEndDate) {
-          const monthIndex = currentMonth.getMonth();
-          const year = currentMonth.getFullYear();
-          const monthStart = new Date(year, monthIndex, 1);
-          const monthEnd = new Date(year, monthIndex + 1, 0);
-
-          // Calculate which week of the displayed range this month starts and ends in
-          const startWeek = Math.floor(
-            (monthStart - chartStartDate) / (7 * 24 * 60 * 60 * 1000)
-          );
-          const endWeek = Math.min(
-            Math.floor((monthEnd - chartStartDate) / (7 * 24 * 60 * 60 * 1000)),
-            totalWeeksToShow - 1
-          );
-
-          // Only add month if it's visible in our range
-          if (startWeek < totalWeeksToShow && endWeek >= 0) {
-            months.push({
-              name:
-                monthNames[monthIndex] +
-                (year !== startDate.getFullYear()
-                  ? " '" + year.toString().substr(2)
-                  : ""),
-              startWeek: Math.max(0, startWeek),
-              endWeek: endWeek,
-              weeks: endWeek - Math.max(0, startWeek) + 1,
-            });
-          }
-
-          // Move to the next month
-          currentMonth.setMonth(currentMonth.getMonth() + 1);
-        }
-
-        // Create the month labels with widths proportional to their number of weeks
-        for (const monthInfo of months) {
-          const monthLabel = document.createElement("div");
-          monthLabel.classList.add("month-label");
-          monthLabel.textContent = monthInfo.name;
-          monthLabel.style.width = `${monthInfo.weeks * weekWidth}%`;
-          monthHeader.appendChild(monthLabel);
-        }
-
-        chartGridWrapper.appendChild(monthHeader);
-        chartGridWrapper.appendChild(chartGrid);
-
-        // Create the GitHub-style tracking chart
-        // Each row represents a day of the week (Sun to Sat)
-        for (let dayOfWeekIndex = 0; dayOfWeekIndex < 7; dayOfWeekIndex++) {
-          // Add the day label (Sun, Mon, etc.)
-          const dayLabel = document.createElement("div");
-          dayLabel.classList.add("day-label");
-          dayLabel.textContent = dayNames[dayOfWeekIndex];
-          chartGrid.appendChild(dayLabel);
-
-          // For each week in our display range
-          for (let week = 0; week < totalWeeksToShow; week++) {
-            // Calculate the date for this specific cell based on chart start date
-            const currentDate = new Date(chartStartDate);
-            currentDate.setDate(
-              chartStartDate.getDate() + week * 7 + dayOfWeekIndex
-            );
-
-            // Create a box for this day
-            const dayBox = document.createElement("div");
-            dayBox.classList.add("day-box");
-
-            // Verify this day's day of week matches what we expect
-            if (currentDate.getDay() !== dayOfWeekIndex) {
-              console.error(
-                "Day mismatch:",
-                currentDate,
-                "expected day:",
-                dayOfWeekIndex,
-                "actual:",
-                currentDate.getDay()
-              );
-            }
-
-            // Format the date as YYYY-MM-DD for the tooltip
-            const year = currentDate.getFullYear();
-            const month = String(currentDate.getMonth() + 1).padStart(2, "0");
-            const day = String(currentDate.getDate()).padStart(2, "0");
-            const formattedDate = `${year}-${month}-${day}`;
-
-            // Determine if this day is before or after the start date
-            if (currentDate < startDate) {
-              // Gray out days before the start date
-              dayBox.classList.add("gray-out");
-
-              // Add tooltip showing just the date for grayed out days
-              const tooltip = document.createElement("span");
-              tooltip.classList.add("tooltip");
-              tooltip.textContent = formattedDate;
-              dayBox.appendChild(tooltip);
-            } else {
-              // This day is on or after the start date
-              const scheduleIndex = Math.floor(
-                (currentDate - startDate) / (1000 * 60 * 60 * 24)
-              );
-
-              if (scheduleIndex < totalDaysInYear) {
-                const onCallPersonIndex = dailySchedule[scheduleIndex];
-
-                if (onCallPersonIndex !== -1 && peopleList[onCallPersonIndex]) {
-                  // Color the box with the team member's color
-                  dayBox.style.backgroundColor =
-                    peopleList[onCallPersonIndex].color;
-
-                  // Add tooltip showing the team member's name and date
-                  const tooltip = document.createElement("span");
-                  tooltip.classList.add("tooltip");
-                  tooltip.textContent = `${peopleList[onCallPersonIndex].name} (${formattedDate})`;
-                  dayBox.appendChild(tooltip);
-                }
-              }
-            }
-
-            chartGrid.appendChild(dayBox);
-          }
+        if (isWeekendDay) {
+          weekendDaysPerPerson[personIndex]++;
         }
       }
 
-      // Load data on page load
-      loadSettings();
-      updateDateModeDisplay();
-      loadPeople();
-    </script>
-  </body>
+      let totalDaysOnCallSum = 0;
+      // Fill the merged table's Weekend Call Days column
+      const teamTableBody = document.getElementById("team-table-body");
+      if (teamTableBody) {
+        [...teamTableBody.children].forEach((tr, i) => {
+          const daysTd = tr.querySelector(".weekend-call-days");
+          if (daysTd) {
+            daysTd.textContent = weekendDaysPerPerson[i];
+          }
+        });
+      }
+      for (let i = 0; i < peopleCount; i++) {
+        totalDaysOnCallSum += weekendDaysPerPerson[i];
+      }
+
+      const mean = totalDaysOnCallSum / peopleCount;
+      const sumOfSquares = weekendDaysPerPerson.reduce(
+        (sum, days) => sum + Math.pow(days - mean, 2),
+        0
+      );
+      const stdDev = Math.sqrt(sumOfSquares / peopleCount);
+
+      document.getElementById("mean").textContent = mean.toFixed(2);
+      document.getElementById("stdDev").textContent = stdDev.toFixed(2);
+      // Dynamic roadsign color using Bootstrap classes
+      const meanSign = document.getElementById("mean-roadsign");
+      const stdDevSign = document.getElementById("stddev-roadsign");
+      if (meanSign && stdDevSign) {
+        if (mean > 15) {
+          meanSign.classList.remove("bg-success");
+          meanSign.classList.add("bg-danger", "text-white");
+        } else {
+          meanSign.classList.remove("bg-danger");
+          meanSign.classList.add("bg-success", "text-white");
+        }
+        if (stdDev > 1) {
+          stdDevSign.classList.remove("bg-success");
+          stdDevSign.classList.add("bg-danger", "text-white");
+        } else {
+          stdDevSign.classList.remove("bg-danger");
+          stdDevSign.classList.add("bg-success", "text-white");
+        }
+      }
+
+      // --- Standard Deviation Bell Curve Chart with Legend ---
+      const stdDevChartWrapper = document.getElementById("stdDevChartWrapper");
+      stdDevChartWrapper.innerHTML = "";
+      const chartFlex = document.createElement("div");
+      chartFlex.style.display = "flex";
+      chartFlex.style.alignItems = "flex-start";
+      chartFlex.style.gap = "24px";
+
+      // Canvas for bell curve
+      const canvas = document.createElement("canvas");
+      canvas.width = 500;
+      canvas.height = 160;
+      canvas.style.width = "100%";
+      canvas.style.maxWidth = "400px";
+      canvas.style.display = "block";
+      chartFlex.appendChild(canvas);
+
+      // Legend container
+      const legend = document.createElement("div");
+      legend.style.display = "flex";
+      legend.style.flexDirection = "column";
+      legend.style.justifyContent = "flex-end";
+      legend.style.alignItems = "flex-end";
+      legend.style.marginTop = "10px";
+      legend.style.minWidth = "120px";
+      legend.style.fontSize = "14px";
+      legend.style.border = "2px solid #bbb";
+      legend.style.borderRadius = "8px";
+      legend.style.background = "#fff";
+      legend.style.padding = "16px 15px 16px 16px";
+      legend.style.marginLeft = "auto";
+
+      peopleList.forEach((person, idx) => {
+        const legendItem = document.createElement("div");
+        legendItem.style.display = "flex";
+        legendItem.style.alignItems = "center";
+        legendItem.style.marginBottom = "8px";
+        const colorDot = document.createElement("span");
+        colorDot.style.display = "inline-block";
+        colorDot.style.width = "16px";
+        colorDot.style.height = "16px";
+        colorDot.style.borderRadius = "50%";
+        colorDot.style.backgroundColor = person.color;
+        colorDot.style.marginRight = "8px";
+        legendItem.appendChild(colorDot);
+        legendItem.appendChild(document.createTextNode(person.name));
+        legend.appendChild(legendItem);
+      });
+      chartFlex.appendChild(legend);
+      stdDevChartWrapper.appendChild(chartFlex);
+
+      const ctx = canvas.getContext("2d");
+      // Draw axes
+      ctx.strokeStyle = "#888";
+      ctx.beginPath();
+      ctx.moveTo(40, 140);
+      ctx.lineTo(480, 180);
+      ctx.moveTo(40, 240);
+      ctx.lineTo(40, 20);
+      ctx.stroke();
+
+      // Draw bell curve
+      function normalPDF(x, mean, std) {
+        return (
+          (1 / (std * Math.sqrt(2 * Math.PI))) *
+          Math.exp(-0.5 * Math.pow((x - mean) / std, 2))
+        );
+      }
+      const minX = Math.min(...weekendDaysPerPerson);
+      const maxX = Math.max(...weekendDaysPerPerson);
+      const pad = Math.max(2, Math.round(stdDev));
+      const xStart = minX - pad;
+      const xEnd = maxX + pad;
+      ctx.strokeStyle = "#0072B2";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let px = 0; px <= 440; px++) {
+        const x = xStart + ((xEnd - xStart) * px) / 440;
+        const y = normalPDF(x, mean, stdDev);
+        const yPx = 140 - y * 6000;
+        if (px === 0) {
+          ctx.moveTo(40 + px, yPx);
+        } else {
+          ctx.lineTo(40 + px, yPx);
+        }
+      }
+      ctx.stroke();
+
+      // Draw data points
+      weekendDaysPerPerson.forEach((days, idx) => {
+        const xPx = 40 + ((days - xStart) / (xEnd - xStart)) * 440;
+        const y = normalPDF(days, mean, stdDev);
+        const yPx = 140 - y * 6000;
+        ctx.beginPath();
+        ctx.arc(xPx, yPx, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = peopleList[idx].color;
+        ctx.fill();
+        ctx.strokeStyle = "#333";
+        ctx.stroke();
+      });
+
+      // Draw x axis labels
+      ctx.font = "12px sans-serif";
+      ctx.fillStyle = "#333";
+      ctx.textAlign = "center";
+      ctx.fillText("Weekend Call Days", 260, 155);
+      ctx.textAlign = "right";
+      ctx.fillText(Math.round(xStart), 40, 150);
+      ctx.textAlign = "left";
+      ctx.fillText(Math.round(xEnd), 480, 150);
+
+      // --- Chart Generation ---
+      const totalWeeksToShow = 53; // Show approx 1 year (52-53 weeks)
+
+      // Create a simplified month header
+      const monthHeader = document.createElement("div");
+      monthHeader.classList.add("month-header");
+
+      // Set up day labels for y-axis (Sun at top, Sat at bottom)
+      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const chartGrid = document.createElement("div");
+      chartGrid.classList.add("chart-grid");
+
+      // Create reference dates for chart generation
+      let chartStartDate, chartEndDate;
+
+      if (useNext12Months) {
+        // For Next 12 Months mode:
+        // Find the start of the current week (Sunday)
+        chartStartDate = new Date(startDate);
+        const dayOfWeek = chartStartDate.getDay();
+        chartStartDate.setDate(chartStartDate.getDate() - dayOfWeek); // Go back to Sunday
+
+        // Calculate end date (about 12 months from start)
+        chartEndDate = new Date(chartStartDate);
+        chartEndDate.setDate(chartStartDate.getDate() + totalWeeksToShow * 7);
+      } else {
+        // For Specific Date mode, show the whole year:
+        chartStartDate = new Date(startDate.getFullYear(), 0, 1); // Jan 1st of the year
+        chartEndDate = new Date(startDate.getFullYear() + 1, 0, 0); // Dec 31st of the year
+      }
+
+      // Generate month labels
+      const monthNames = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const weekWidth = 100 / totalWeeksToShow; // Percentage width for each week
+
+      // Track the months to display
+      const months = [];
+      let currentMonth = new Date(chartStartDate);
+      while (currentMonth < chartEndDate) {
+        const monthIndex = currentMonth.getMonth();
+        const year = currentMonth.getFullYear();
+        const monthStart = new Date(year, monthIndex, 1);
+        const monthEnd = new Date(year, monthIndex + 1, 0);
+
+        // Calculate which week of the displayed range this month starts and ends in
+        const startWeek = Math.floor(
+          (monthStart - chartStartDate) / (7 * 24 * 60 * 60 * 1000)
+        );
+        const endWeek = Math.min(
+          Math.floor((monthEnd - chartStartDate) / (7 * 24 * 60 * 60 * 1000)),
+          totalWeeksToShow - 1
+        );
+
+        // Only add month if it's visible in our range
+        if (startWeek < totalWeeksToShow && endWeek >= 0) {
+          months.push({
+            name:
+              monthNames[monthIndex] +
+              (year !== startDate.getFullYear()
+                ? " '" + year.toString().substr(2)
+                : ""),
+            startWeek: Math.max(0, startWeek),
+            endWeek: endWeek,
+            weeks: endWeek - Math.max(0, startWeek) + 1,
+          });
+        }
+
+        // Move to the next month
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+      }
+
+      // Create the month labels with widths proportional to their number of weeks
+      for (const monthInfo of months) {
+        const monthLabel = document.createElement("div");
+        monthLabel.classList.add("month-label");
+        monthLabel.textContent = monthInfo.name;
+        monthLabel.style.width = `${monthInfo.weeks * weekWidth}%`;
+        monthHeader.appendChild(monthLabel);
+      }
+
+      chartGridWrapper.appendChild(monthHeader);
+      chartGridWrapper.appendChild(chartGrid);
+
+      // Create the GitHub-style tracking chart
+      // Each row represents a day of the week (Sun to Sat)
+      for (let dayOfWeekIndex = 0; dayOfWeekIndex < 7; dayOfWeekIndex++) {
+        // Add the day label (Sun, Mon, etc.)
+        const dayLabel = document.createElement("div");
+        dayLabel.classList.add("day-label");
+        dayLabel.textContent = dayNames[dayOfWeekIndex];
+        chartGrid.appendChild(dayLabel);
+
+        // For each week in our display range
+        for (let week = 0; week < totalWeeksToShow; week++) {
+          // Calculate the date for this specific cell based on chart start date
+          const currentDate = new Date(chartStartDate);
+          currentDate.setDate(
+            chartStartDate.getDate() + week * 7 + dayOfWeekIndex
+          );
+
+          // Create a box for this day
+          const dayBox = document.createElement("div");
+          dayBox.classList.add("day-box");
+
+          // Verify this day's day of week matches what we expect
+          if (currentDate.getDay() !== dayOfWeekIndex) {
+            console.error(
+              "Day mismatch:",
+              currentDate,
+              "expected day:",
+              dayOfWeekIndex,
+              "actual:",
+              currentDate.getDay()
+            );
+          }
+
+          // Format the date as YYYY-MM-DD for the tooltip
+          const year = currentDate.getFullYear();
+          const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+          const day = String(currentDate.getDate()).padStart(2, "0");
+          const formattedDate = `${year}-${month}-${day}`;
+
+          // Determine if this day is before or after the start date
+          if (currentDate < startDate) {
+            // Gray out days before the start date
+            dayBox.classList.add("gray-out");
+
+            // Add tooltip showing just the date for grayed out days
+            const tooltip = document.createElement("span");
+            tooltip.classList.add("tooltip");
+            tooltip.textContent = formattedDate;
+            dayBox.appendChild(tooltip);
+          } else {
+            // This day is on or after the start date
+            const scheduleIndex = Math.floor(
+              (currentDate - startDate) / (1000 * 60 * 60 * 24)
+            );
+
+            if (scheduleIndex < totalDaysInYear) {
+              const onCallPersonIndex = dailySchedule[scheduleIndex];
+
+              if (onCallPersonIndex !== -1 && peopleList[onCallPersonIndex]) {
+                // Color the box with the team member's color
+                dayBox.style.backgroundColor =
+                  peopleList[onCallPersonIndex].color;
+
+                // Add tooltip showing the team member's name and date
+                const tooltip = document.createElement("span");
+                tooltip.classList.add("tooltip");
+                tooltip.textContent = `${peopleList[onCallPersonIndex].name} (${formattedDate})`;
+                dayBox.appendChild(tooltip);
+              }
+            }
+          }
+
+          chartGrid.appendChild(dayBox);
+        }
+      }
+    }
+
+    // Load data on page load
+    loadSettings();
+    updateDateModeDisplay();
+    loadPeople();
+  </script>
 </html>
