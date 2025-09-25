@@ -1,0 +1,11 @@
+.team-members-table {
+  /* Additional custom styles for the team members table can be added here */
+}
+
+.team-members-table .cursor-pointer {
+  cursor: pointer;
+}
+
+.team-members-table .cursor-pointer:hover {
+  text-decoration: underline;
+}

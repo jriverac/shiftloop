@@ -16,6 +16,8 @@ td.querySelector(".team-name-input").focus(); }
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Weekend Call Schedule</title>
+    <!-- D3.js v3 for bell curve chart -->
+    <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
     <style>
       body {
         font-family: sans-serif;
@@ -871,116 +873,155 @@ td.querySelector(".team-name-input").focus(); }
         }
       }
 
-      // --- Standard Deviation Bell Curve Chart with Legend ---
+      // --- Standard Deviation Bell Curve Chart with D3.js ---
       const stdDevChartWrapper = document.getElementById("stdDevChartWrapper");
       stdDevChartWrapper.innerHTML = "";
-      const chartFlex = document.createElement("div");
-      chartFlex.style.display = "flex";
-      chartFlex.style.alignItems = "flex-start";
-      chartFlex.style.gap = "24px";
+      // Create a container div for D3
+      const d3Container = document.createElement("div");
+      d3Container.id = "d3-bellcurve";
+      stdDevChartWrapper.appendChild(d3Container);
 
-      // Canvas for bell curve
-      const canvas = document.createElement("canvas");
-      canvas.width = 500;
-      canvas.height = 160;
-      canvas.style.width = "100%";
-      canvas.style.maxWidth = "400px";
-      canvas.style.display = "block";
-      chartFlex.appendChild(canvas);
-
-      // Legend container
-      const legend = document.createElement("div");
-      legend.style.display = "flex";
-      legend.style.flexDirection = "column";
-      legend.style.justifyContent = "flex-end";
-      legend.style.alignItems = "flex-end";
-      legend.style.marginTop = "10px";
-      legend.style.minWidth = "120px";
-      legend.style.fontSize = "14px";
-      legend.style.border = "2px solid #bbb";
-      legend.style.borderRadius = "8px";
-      legend.style.background = "#fff";
-      legend.style.padding = "16px 15px 16px 16px";
-      legend.style.marginLeft = "auto";
-
-      peopleList.forEach((person, idx) => {
-        const legendItem = document.createElement("div");
-        legendItem.style.display = "flex";
-        legendItem.style.alignItems = "center";
-        legendItem.style.marginBottom = "8px";
-        const colorDot = document.createElement("span");
-        colorDot.style.display = "inline-block";
-        colorDot.style.width = "16px";
-        colorDot.style.height = "16px";
-        colorDot.style.borderRadius = "50%";
-        colorDot.style.backgroundColor = person.color;
-        colorDot.style.marginRight = "8px";
-        legendItem.appendChild(colorDot);
-        legendItem.appendChild(document.createTextNode(person.name));
-        legend.appendChild(legendItem);
-      });
-      chartFlex.appendChild(legend);
-      stdDevChartWrapper.appendChild(chartFlex);
-
-      const ctx = canvas.getContext("2d");
-      // Draw axes
-      ctx.strokeStyle = "#888";
-      ctx.beginPath();
-      ctx.moveTo(40, 140);
-      ctx.lineTo(480, 180);
-      ctx.moveTo(40, 240);
-      ctx.lineTo(40, 20);
-      ctx.stroke();
-
-      // Draw bell curve
-      function normalPDF(x, mean, std) {
-        return (
-          (1 / (std * Math.sqrt(2 * Math.PI))) *
-          Math.exp(-0.5 * Math.pow((x - mean) / std, 2))
-        );
-      }
-      const minX = Math.min(...weekendDaysPerPerson);
-      const maxX = Math.max(...weekendDaysPerPerson);
-      const pad = Math.max(2, Math.round(stdDev));
-      const xStart = minX - pad;
-      const xEnd = maxX + pad;
-      ctx.strokeStyle = "#0072B2";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      for (let px = 0; px <= 440; px++) {
-        const x = xStart + ((xEnd - xStart) * px) / 440;
-        const y = normalPDF(x, mean, stdDev);
-        const yPx = 140 - y * 6000;
-        if (px === 0) {
-          ctx.moveTo(40 + px, yPx);
-        } else {
-          ctx.lineTo(40 + px, yPx);
+      // D3 chart code
+      setTimeout(function () {
+        var data = [];
+        var meanVal = mean;
+        var stdVal = stdDev;
+        // Generate quantile/probability pairs
+        for (var i = 0; i < 1000; i++) {
+          var q = meanVal + stdVal * normal();
+          var p = gaussian(q, meanVal, stdVal);
+          data.push({ q: q, p: p });
         }
-      }
-      ctx.stroke();
+        data.sort(function (x, y) {
+          return x.q - y.q;
+        });
 
-      // Draw data points
-      weekendDaysPerPerson.forEach((days, idx) => {
-        const xPx = 40 + ((days - xStart) / (xEnd - xStart)) * 440;
-        const y = normalPDF(days, mean, stdDev);
-        const yPx = 140 - y * 6000;
-        ctx.beginPath();
-        ctx.arc(xPx, yPx, 6, 0, 2 * Math.PI);
-        ctx.fillStyle = peopleList[idx].color;
-        ctx.fill();
-        ctx.strokeStyle = "#333";
-        ctx.stroke();
-      });
+        var margin = { top: 20, right: 20, bottom: 30, left: 50 },
+          width = 500 - margin.left - margin.right,
+          height = 220 - margin.top - margin.bottom;
 
-      // Draw x axis labels
-      ctx.font = "12px sans-serif";
-      ctx.fillStyle = "#333";
-      ctx.textAlign = "center";
-      ctx.fillText("Weekend Call Days", 260, 155);
-      ctx.textAlign = "right";
-      ctx.fillText(Math.round(xStart), 40, 150);
-      ctx.textAlign = "left";
-      ctx.fillText(Math.round(xEnd), 480, 150);
+        var x = d3.scale.linear().range([0, width]);
+        var y = d3.scale.linear().range([height, 0]);
+
+        var xAxis = d3.svg.axis().scale(x).orient("bottom");
+        var yAxis = d3.svg.axis().scale(y).orient("left");
+
+        // Format axis ticks for clarity
+        xAxis.tickFormat(d3.format(".0f"));
+        yAxis.tickFormat(d3.format(".2f"));
+
+        var line = d3.svg
+          .line()
+          .x(function (d) {
+            return x(d.q);
+          })
+          .y(function (d) {
+            return y(d.p);
+          });
+
+        var svg = d3
+          .select("#d3-bellcurve")
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr(
+            "transform",
+            "translate(" + margin.left + "," + margin.top + ")"
+          );
+
+        x.domain(
+          d3.extent(data, function (d) {
+            return d.q;
+          })
+        );
+        y.domain(
+          d3.extent(data, function (d) {
+            return d.p;
+          })
+        );
+
+        svg
+          .append("g")
+          .attr("class", "x axis")
+          .attr("transform", "translate(0," + height + ")")
+          .call(xAxis)
+          .append("text")
+          .attr("class", "label")
+          .attr("x", width / 2)
+          .attr("y", 28)
+          .style("text-anchor", "middle")
+          .style("font-size", "14px")
+          .text("Weekend Call Days");
+
+        svg
+          .append("g")
+          .attr("class", "y axis")
+          .call(yAxis)
+          .append("text")
+          .attr("class", "label")
+          .attr("transform", "rotate(-90)")
+          .attr("y", -40)
+          .attr("x", -height / 2)
+          .attr("dy", ".71em")
+          .style("text-anchor", "middle")
+          .style("font-size", "14px")
+          .text("Probability Density");
+
+        svg.append("path").datum(data).attr("class", "line").attr("d", line);
+
+        // Draw legend
+        var legend = document.createElement("div");
+        legend.style.display = "flex";
+        legend.style.flexDirection = "column";
+        legend.style.justifyContent = "flex-end";
+        legend.style.alignItems = "flex-end";
+        legend.style.marginTop = "10px";
+        legend.style.minWidth = "120px";
+        legend.style.fontSize = "14px";
+        legend.style.border = "2px solid #bbb";
+        legend.style.borderRadius = "8px";
+        legend.style.background = "#fff";
+        legend.style.padding = "16px 15px 16px 16px";
+        legend.style.marginLeft = "auto";
+        peopleList.forEach((person, idx) => {
+          var legendItem = document.createElement("div");
+          legendItem.style.display = "flex";
+          legendItem.style.alignItems = "center";
+          legendItem.style.marginBottom = "8px";
+          var colorDot = document.createElement("span");
+          colorDot.style.display = "inline-block";
+          colorDot.style.width = "16px";
+          colorDot.style.height = "16px";
+          colorDot.style.borderRadius = "50%";
+          colorDot.style.backgroundColor = person.color;
+          colorDot.style.marginRight = "8px";
+          legendItem.appendChild(colorDot);
+          legendItem.appendChild(document.createTextNode(person.name));
+          legend.appendChild(legendItem);
+        });
+        stdDevChartWrapper.appendChild(legend);
+
+        // Helper functions
+        function normal() {
+          var x = 0,
+            y = 0,
+            rds,
+            c;
+          do {
+            x = Math.random() * 2 - 1;
+            y = Math.random() * 2 - 1;
+            rds = x * x + y * y;
+          } while (rds == 0 || rds > 1);
+          c = Math.sqrt((-2 * Math.log(rds)) / rds);
+          return x * c;
+        }
+        function gaussian(x, mean, sigma) {
+          var gaussianConstant = 1 / Math.sqrt(2 * Math.PI);
+          x = (x - mean) / sigma;
+          return (gaussianConstant * Math.exp(-0.5 * x * x)) / sigma;
+        }
+      }, 0);
 
       // --- Chart Generation ---
       const totalWeeksToShow = 53; // Show approx 1 year (52-53 weeks)
