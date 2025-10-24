@@ -2,9 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import './Graph.css';
 
-const Graph = ({ peopleList, mean, stdDev }) => {
+const Graph = ({ peopleList, weekendDaysPerPerson, mean, stdDev }) => {
   const chartRef = useRef(null);
-  
+
   useEffect(() => {
     if (!chartRef.current || !peopleList.length) {
       if (chartRef.current) {
@@ -12,9 +12,9 @@ const Graph = ({ peopleList, mean, stdDev }) => {
       }
       return;
     }
-    
+
     generateBellCurve();
-  }, [peopleList, mean, stdDev]);
+  }, [peopleList, weekendDaysPerPerson, mean, stdDev]);
   
   const generateBellCurve = () => {
     if (!chartRef.current) return;
@@ -101,6 +101,26 @@ const Graph = ({ peopleList, mean, stdDev }) => {
       .attr('stroke', '#0066cc')
       .attr('stroke-width', 2)
       .attr('d', line);
+
+    // Add markers for each person's actual weekend days
+    if (weekendDaysPerPerson && weekendDaysPerPerson.length > 0) {
+      peopleList.forEach((person, idx) => {
+        const weekendDays = weekendDaysPerPerson[idx];
+        const yValue = gaussian(weekendDays, meanVal, stdVal);
+
+        // Add circle marker
+        svg.append('circle')
+          .attr('cx', xScale(weekendDays))
+          .attr('cy', yScale(yValue))
+          .attr('r', 6)
+          .attr('fill', person.color)
+          .attr('stroke', 'white')
+          .attr('stroke-width', 2)
+          .style('cursor', 'pointer')
+          .append('title')
+          .text(`${person.name}: ${weekendDays} days`);
+      });
+    }
   };
   
   // Gaussian probability density function

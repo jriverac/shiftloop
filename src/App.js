@@ -51,28 +51,37 @@ const App = () => {
   }, [peopleList, startDate, shiftLength, includeFriday, useNext12Months]);
   
   const loadSettings = () => {
-    const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (storedSettings) {
-      const settings = JSON.parse(storedSettings);
+    try {
+      const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      console.log('Loading settings from localStorage:', storedSettings);
       
-      if (settings.startDate) {
-        setStartDate(settings.startDate);
+      if (storedSettings) {
+        const settings = JSON.parse(storedSettings);
+        console.log('Parsed settings:', settings);
+        
+        if (settings.startDate) {
+          setStartDate(settings.startDate);
+        } else {
+          setStartDate(new Date().toISOString().split('T')[0]);
+        }
+        
+        if (settings.shiftLength !== undefined) {
+          setShiftLength(settings.shiftLength);
+        }
+        
+        if (settings.includeFriday !== undefined) {
+          setIncludeFriday(settings.includeFriday);
+        }
+        
+        if (settings.useNext12Months !== undefined) {
+          setUseNext12Months(settings.useNext12Months);
+        }
       } else {
+        console.log('No stored settings found, using defaults');
         setStartDate(new Date().toISOString().split('T')[0]);
       }
-      
-      if (settings.shiftLength) {
-        setShiftLength(settings.shiftLength);
-      }
-      
-      if (settings.includeFriday !== undefined) {
-        setIncludeFriday(settings.includeFriday);
-      }
-      
-      if (settings.useNext12Months !== undefined) {
-        setUseNext12Months(settings.useNext12Months);
-      }
-    } else {
+    } catch (error) {
+      console.error('Error loading settings from localStorage:', error);
       setStartDate(new Date().toISOString().split('T')[0]);
     }
   };
@@ -251,8 +260,9 @@ const App = () => {
           <div className="col-lg-8 col-md-12 mb-3">
             <div className="card border-0 shadow-sm h-100">
               <div className="card-body">
-                <Graph 
+                <Graph
                   peopleList={peopleList}
+                  weekendDaysPerPerson={weekendDaysPerPerson}
                   mean={mean}
                   stdDev={stdDev}
                 />
