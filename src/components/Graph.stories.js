@@ -12,6 +12,10 @@ export default {
       control: 'object',
       description: 'Array of team members with names and colors',
     },
+    weekendDaysPerPerson: {
+      control: 'object',
+      description: 'Array of weekend days count for each person',
+    },
     mean: {
       control: { type: 'number', min: 0, max: 50, step: 0.1 },
       description: 'Mean weekend call days',
@@ -43,6 +47,7 @@ const samplePeopleLarge = [
 export const Default = {
   args: {
     peopleList: samplePeopleSmall,
+    weekendDaysPerPerson: [14, 16, 16],
     mean: 15.2,
     stdDev: 1.5,
   },
@@ -52,6 +57,7 @@ export const Default = {
 export const Empty = {
   args: {
     peopleList: [],
+    weekendDaysPerPerson: [],
     mean: 0,
     stdDev: 0,
   },
@@ -61,6 +67,7 @@ export const Empty = {
 export const PerfectDistribution = {
   args: {
     peopleList: samplePeopleSmall,
+    weekendDaysPerPerson: [12, 12, 12],
     mean: 12.0,
     stdDev: 0.2,
   },
@@ -70,6 +77,7 @@ export const PerfectDistribution = {
 export const PoorDistribution = {
   args: {
     peopleList: samplePeopleSmall,
+    weekendDaysPerPerson: [14, 19, 23],
     mean: 18.5,
     stdDev: 4.2,
   },
@@ -79,6 +87,7 @@ export const PoorDistribution = {
 export const LargeTeam = {
   args: {
     peopleList: samplePeopleLarge,
+    weekendDaysPerPerson: [10, 11, 10, 11, 11, 10, 11],
     mean: 10.8,
     stdDev: 0.8,
   },
@@ -88,6 +97,7 @@ export const LargeTeam = {
 export const HighWorkload = {
   args: {
     peopleList: samplePeopleSmall,
+    weekendDaysPerPerson: [24, 26, 26],
     mean: 25.3,
     stdDev: 2.1,
   },
@@ -97,6 +107,7 @@ export const HighWorkload = {
 export const SinglePerson = {
   args: {
     peopleList: [{ id: 1, name: 'Solo Worker', color: '#E69F00' }],
+    weekendDaysPerPerson: [52],
     mean: 52.0,
     stdDev: 0.0,
   },
@@ -109,6 +120,7 @@ export const TwoPersonTeam = {
       { id: 1, name: 'Alice', color: '#E69F00' },
       { id: 2, name: 'Bob', color: '#56B4E9' },
     ],
+    weekendDaysPerPerson: [25, 27],
     mean: 26.0,
     stdDev: 1.0,
   },
