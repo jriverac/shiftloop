@@ -1,0 +1,61 @@
+.bell-curve-chart-container {
+  margin-top: 30px;
+  border: 1px solid #e1e4e8;
+  padding: 10px;
+  border-radius: 6px;
+  background-color: #ebedf0;
+  overflow-x: auto;
+  min-height: 300px;
+}
+
+.chart-area {
+  background-color: #fff;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #e1e4e8;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  min-width: 150px;
+  font-size: 14px;
+  border: 2px solid #bbb;
+  border-radius: 8px;
+  background: #fff;
+  padding: 16px 15px 16px 16px;
+  margin-left: auto;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.legend-color {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+/* D3 SVG styling */
+.bell-curve-chart-container .axis {
+  font: 12px sans-serif;
+}
+
+.bell-curve-chart-container .axis path,
+.bell-curve-chart-container .axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.bell-curve-chart-container .axis text {
+  font-family: sans-serif;
+  font-size: 12px;
+}

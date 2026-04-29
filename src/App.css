@@ -1,0 +1,65 @@
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.cursor-pointer:hover {
+  text-decoration: underline;
+}
+
+/* Custom card styling to match original design */
+.card {
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+}
+
+/* Color picker styling */
+.form-control-color {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 4px;
+  border: 2px solid #dee2e6;
+  cursor: pointer;
+}
+
+.form-control-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border-radius: 2px;
+}
+
+.form-control-color::-webkit-color-swatch {
+  border: none;
+  border-radius: 2px;
+}
+
+/* Button group improvements */
+.btn-group-sm .btn {
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Statistics cards */
+.display-5 {
+  font-size: 2.5rem;
+  font-weight: 300;
+  line-height: 1.2;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .container-fluid {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  
+  .btn-group-sm .btn {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.4rem;
+  }
+  
+  .display-5 {
+    font-size: 2rem;
+  }
+}
